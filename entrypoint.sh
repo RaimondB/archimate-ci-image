@@ -38,6 +38,19 @@ _re_url='([\w.@\:/~\-]+)(\.git)(\/)?'
 _re_proto_http='(http(s)?(:(\/){0,3}))?'
 _re_proto_ssh='((((git|user)@[\w.-]+)|(git|ssh))(:(\/){0,3}))'
 
+# Create Settings needed
+
+SETTINGS_ROOT="/root/.archi/.metadata/.plugins/org.eclipse.core.runtime/.settings"
+
+mkdir -p $SETTINGS_ROOT
+
+# Create a settings file for the scripting engine so it knows where to find the scripts
+cat << EOF > $SETTINGS_ROOT/com.archimatetool.script.prefs
+eclipse.preferences.version=1
+scriptsFolder=${ARCHI_PROJECT_PATH}/scripts
+EOF
+
+
 
 # Functions
 # ---------
@@ -84,9 +97,10 @@ archi_run() {
   [ "${ARCHI_RUN_SCRIPT_ENABLED,,}" == true ] &&
     _args+=(
       --script.runScript
-        "${JARCHI_SCRIPT_PATH}"
+        "${ARCHI_PROJECT_PATH}/scripts/${JARCHI_SCRIPT_PATH}"
     )
 
+ printf "Run with %s\n" "${_args[@]}"
 
   # Run Archi
   xvfb-run \
@@ -153,6 +167,29 @@ fail() { printf >&2 '%s\n' "$*"; exit 1; }
 
 # Main
 # ----
+
+# Authenticate with Google Cloud and download custom plugins if required
+if [ "${DOWNLOAD_CUSTOM_PLUGINS_GCP,,}" == "true" ]; then
+  if [ -z "${GOOGLE_APPLICATION_CREDENTIALS_JSON:-}" ]; then
+    echo "Error: GOOGLE_APPLICATION_CREDENTIALS is not set."
+    exit 1
+  fi
+
+  if [ -z "${GOOGLE_CLOUD_PROJECT:-}" ]; then
+    echo "Error: GOOGLE_CLOUD_PROJECT is not set."
+    exit 1
+  fi
+
+  echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /root/service-account-key.json
+
+#  gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+  gcloud auth activate-service-account --key-file=/root/service-account-key.json
+
+  gcloud config set project "$GOOGLE_CLOUD_PROJECT"
+
+  # Download a file from the GCS bucket
+  gsutil cp -r gs://ea-repo-archi-plugins/* /root/.archi/dropins/
+fi
 
 # Run custom archi command
 if [ "$#" -ge 1 ]; then
@@ -310,13 +347,13 @@ elif [ -n "${GIT_REPOSITORY:-}" ]; then
 
   # Git URL not valid
   else
-    fail 'Git repository URL not valid. Plese use http or ssh url'
+    fail 'Git repository URL not valid. Please use http or ssh url'
   fi
 
 # Exit. Model not exist
 else
   fail \
-    "Plese set http or ssh url to git repositorty in \$GIT_REPOSITORY" \
+    "Please set http or ssh url to git repository in \$GIT_REPOSITORY" \
     "variable or mount model to \$ARCHI_PROJECT_PATH ($ARCHI_PROJECT_PATH)" \
     'directory.'
 fi

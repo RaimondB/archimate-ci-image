@@ -6,6 +6,7 @@ ARG TZ=UTC
 
 # DL3015 ignored for suppress org.freedesktop.DBus.Error.ServiceUnknown
 # hadolint ignore=DL3008,DL3015
+# Added support for google cloud cli by following  https://cloud.google.com/sdk/docs/install
 RUN set -eux; \
     ln -snf "/usr/share/zoneinfo/$TZ" /etc/localtime; \
     echo "$TZ" > /etc/timezone; \
@@ -19,10 +20,18 @@ RUN set -eux; \
       curl \
       git \
       openssh-client \
-      unzip; \
+      unzip \
+      apt-transport-https \ 
+      gnupg; \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg; \
+    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | \ 
+      tee -a /etc/apt/sources.list.d/google-cloud-sdk.list ; \
+    apt-get update; \
+    apt-get install -y \
+      google-cloud-cli; \      
     apt-get clean; \
     update-ca-certificates; \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*;
 
 FROM base AS archi
 ARG ARCHI_VERSION=5.4.3
@@ -48,5 +57,7 @@ RUN set -eux; \
 
 FROM coarchi 
 
+#COPY dist/*.jar /root/.archi/dropins/
 COPY entrypoint.sh /opt/Archi/
+
 ENTRYPOINT [ "/opt/Archi/entrypoint.sh" ]
