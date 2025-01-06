@@ -1,2 +1,4 @@
 /report
 .env
+/test
+ci-output/

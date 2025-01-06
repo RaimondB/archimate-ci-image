@@ -107,6 +107,9 @@ docker run --rm -ti \
 
 ## Configuration
 
+Choosing between getting the model from a repo or an archimate file:
+* **`ARCHI_MODEL_MODE`**=`repository|file` - Choose if you want to load the model as a repo (from ARCHI_PROJECT_PATH), or load a file (from ARCHI_MODEL_FILE), by default the repository mode is enabled.
+
 Configuration for connecting to the git repository:
 
 * **`GIT_REPOSITORY`** - Git repository address;
@@ -114,6 +117,11 @@ Configuration for connecting to the git repository:
   for private repositories, or use a key mounted in an ssh container;
 * **`GIT_USERNAME`** - Username (_it is better to use token or ssh key_);
 * **`GIT_PASSWORD`** - Password (_it is better to use token or ssh key_).
+
+Configuration for loading a standard *.archimate file:
+
+* **`ARCHI_MODEL_FILE`** - path to the .archimate file to be loaded;
+
 
 Options for managing model export:
 
@@ -138,13 +146,33 @@ Options for managing model export:
   format.
 * **`ARCHI_EXPORT_MODEL_PATH`**=`$ARCHI_REPORT_PATH` - Path for save model;
 * **`ARCHI_APP`**=`com.archimatetool.commandline.app` application name.
+* **`ARCHI_COLOUR_PREFS_PATH`**=`-` - (Optional) Point to a Archi colour export file, so that CI will use customized default colors for the archimate concepts. This path needs to be mounted from the container and will be copied to the .settings dir for Archi inside the container as `com.archimatetool.editor.prefs`
 * **`DEBUG`**=`false` - enable `bash -x`
+
+
+
+### Script Processing
+
+Extra options are available when you want to run jArchi scripts as part of the CI.
+Since the jArchi JAR is not packaged in the container, there is the possibility to download additional plugins from a GCP Storage Bucket.
+
+* **`ARCHI_RUN_SCRIPT_ENABLED`**=`false` - Set to true to enable jArchi script;
+* **`JARCHI_SCRIPT_ROOT`**=`${ARCHI_PROJECT_PATH}/scripts` - Root path in the container where scripts are located (could be coming from the git repo, or shared as a separate volume to the container);
+* **`JARCHI_SCRIPT_PATH`** - Location of the jArchi script to run, relative to the root path configured;
+
+Downloading additional plugins:
+
+* **`DOWNLOAD_CUSTOM_PLUGINS_GCP`**=`false` - Flag to enable downloading of plugin from a GCP Bucket;
+* **`GOOGLE_APPLICATION_CREDENTIALS_JSON`** - JSON Structure with credentials, obtained by downloading the key for a Service Account in GCP that has acces to the storage bucket.
+  report;
+* **`GOOGLE_CLOUD_PROJECT`** - ID of the GCP Project that contains the storage bucket;
+* **`GOOGLE_CLOUD_STORAGE_SOURCE`** - Source path in the form of gs://`path with wildcard` that indicates the storage bucket and the source path to be copied into the container`s dropins folder.;
 
 ### GitHub Actions Configuration
 
 #### Variables
 
-* **`GITHUB_TOKEN`** - Use default token, or you can set some token from secrret `${{ secrets.ACCESS_TOKEN }}`
+* **`GITHUB_TOKEN`** - Use default token, or you can set some token from secret `${{ secrets.ACCESS_TOKEN }}`
 * **`GITHUB_SERVER_URL`**=`https://github.com` - GitHub server URL;
 * **`GITHUB_PAGES_DOMAIN`** - Custom domain CNAME for pages;
 * **`GITHUB_PAGES_BRANCH`**=`gh-pages` - Branch for store reports used in pages;

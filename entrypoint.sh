@@ -16,6 +16,8 @@ set -euo pipefail
 : "${ARCHI_EXPORT_MODEL_ENABLED:=true}"
 : "${ARCHI_APP:=com.archimatetool.commandline.app}"
 : "${ARCHI_RUN_SCRIPT_ENABLED:=false}"
+: "${ARCHI_MODEL_MODE:=repository}"
+: "${JARCHI_SCRIPT_ROOT:=${ARCHI_PROJECT_PATH}/scripts}"
 
 
 : "${GITHUB_SERVER_URL:=https://github.com}"
@@ -44,13 +46,19 @@ SETTINGS_ROOT="/root/.archi/.metadata/.plugins/org.eclipse.core.runtime/.setting
 
 mkdir -p $SETTINGS_ROOT
 
-# Create a settings file for the scripting engine so it knows where to find the scripts
-cat << EOF > $SETTINGS_ROOT/com.archimatetool.script.prefs
+if [ "${ARCHI_RUN_SCRIPT_ENABLED,,}" == true ]; then
+  # Create a settings file for the scripting engine so it knows where to find the scripts
+  cat << EOF > $SETTINGS_ROOT/com.archimatetool.script.prefs
 eclipse.preferences.version=1
-scriptsFolder=${ARCHI_PROJECT_PATH}/scripts
+scriptsFolder=${JARCHI_SCRIPT_ROOT}
 EOF
+fi
 
-
+# Copy the colour preferences file if it is set to the settings location and rename
+# This is to ensure colour fidelity with the client settings
+if [ -n "${ARCHI_COLOUR_PREFS_PATH:-}" ]; then
+  cp "${ARCHI_COLOUR_PREFS_PATH}" "$SETTINGS_ROOT"/com.archimatetool.editor.prefs
+fi
 
 # Functions
 # ---------
@@ -97,7 +105,21 @@ archi_run() {
   [ "${ARCHI_RUN_SCRIPT_ENABLED,,}" == true ] &&
     _args+=(
       --script.runScript
-        "${ARCHI_PROJECT_PATH}/scripts/${JARCHI_SCRIPT_PATH}"
+        "${JARCHI_SCRIPT_ROOT}/${JARCHI_SCRIPT_PATH}"
+    )
+
+  # use a repo based model
+  [ "${ARCHI_MODEL_MODE,,}" == repository ] &&
+    _args+=(
+      --modelrepository.loadModel 
+      "$ARCHI_PROJECT_PATH"
+    )
+
+  # use a file based model
+  [ "${ARCHI_MODEL_MODE,,}" == file ] &&
+    _args+=(
+      --loadModel 
+      "$ARCHI_MODEL_FILE"
     )
 
  printf "Run with %s\n" "${_args[@]}"
@@ -105,7 +127,7 @@ archi_run() {
   # Run Archi
   xvfb-run \
     /opt/Archi/Archi -application "$ARCHI_APP" -consoleLog -nosplash \
-      --modelrepository.loadModel "$ARCHI_PROJECT_PATH" "${_args[@]}" &&
+       "${_args[@]}" &&
   printf '\n%s\n\n' "Done. Reports saved to $ARCHI_REPORT_PATH"
 }
 
@@ -180,15 +202,19 @@ if [ "${DOWNLOAD_CUSTOM_PLUGINS_GCP,,}" == "true" ]; then
     exit 1
   fi
 
+  if [ -z "${GOOGLE_CLOUD_STORAGE_SOURCE:-}" ]; then
+    echo "Error: GOOGLE_CLOUD_STORAGE_SOURCE is not set."
+    exit 1
+  fi
+
   echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /root/service-account-key.json
 
-#  gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
   gcloud auth activate-service-account --key-file=/root/service-account-key.json
 
   gcloud config set project "$GOOGLE_CLOUD_PROJECT"
 
   # Download a file from the GCS bucket
-  gsutil cp -r gs://ea-repo-archi-plugins/* /root/.archi/dropins/
+  gsutil cp -r "$GOOGLE_CLOUD_STORAGE_SOURCE" /root/.archi/dropins/
 fi
 
 # Run custom archi command
