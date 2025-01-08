@@ -4,9 +4,10 @@ set -e
 
 ARCHI_VERSION=5.4.3
 COARCHI_VERSION=0.9.2
+USERNAME=$(whoami)
 
 docker build \
-  --tag "archimate-ci-image:$ARCHI_VERSION-dev" \
+  --tag "$USERNAME/archimate-ci-image:dev" \
   --build-arg="ARCHI_VERSION=$ARCHI_VERSION" \
   --build-arg="COARCHI_VERSION=$COARCHI_VERSION" \
   ./
