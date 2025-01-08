@@ -159,6 +159,15 @@ Since the jArchi JAR is not packaged in the container, there is the possibility 
 * **`ARCHI_RUN_SCRIPT_ENABLED`**=`false` - Set to true to enable jArchi script;
 * **`JARCHI_SCRIPT_ROOT`**=`${ARCHI_PROJECT_PATH}/scripts` - Root path in the container where scripts are located (could be coming from the git repo, or shared as a separate volume to the container);
 * **`JARCHI_SCRIPT_PATH`** - Location of the jArchi script to run, relative to the root path configured;
+* **`ARCHI_SCRIPT_CI_CONFIG_PATH`** - Provide the path to a file (can use wildcards) of files to be copied to the `JARCHI_SCRIPT_ROOT`. This can we used to overwrite a script file coming from the repo, so that you could change e.g. the output path of the export script you run during the CI. It needs to be outside of the repository location because otherwise git clone will complain the target directory is not empty.
+
+This ci-config.ajs could look something like below, and included from other jArchi script files so that their behavior can be tweaked for the CI environment.
+
+```javascript
+const CI_CONFIG ={
+    OutputDir : "/archi/ci-output",
+}
+```
 
 Downloading additional plugins:
 

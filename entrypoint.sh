@@ -65,6 +65,13 @@ fi
 
 # Run Archi
 archi_run() {
+  # Before running, prepare the scripts. This is to ensure that the scripts are available for the jArchi engine, but only after cloning has already taken place.
+  # Copy additional script files to configure scripts for the CI
+  if [ -n "${ARCHI_SCRIPT_CI_CONFIG_PATH:-}" ]; then
+    cp $ARCHI_SCRIPT_CI_CONFIG_PATH $JARCHI_SCRIPT_ROOT
+  fi
+
+
   local -a _args=()
 
   # Html report
