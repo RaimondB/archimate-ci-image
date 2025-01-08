@@ -2,7 +2,7 @@
 name: Build & Push Image as Package
 
 # This workflow runs when any of the following occur:
-# - A push is made to a branch called `main` 
+# - A push is made to a branch called `master` 
 # - A tag starting with "v" is created
 # - A pull request is created or updated
 on:
