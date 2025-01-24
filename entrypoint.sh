@@ -95,6 +95,12 @@ archi_run() {
         "${ARCHI_EXPORT_MODEL_PATH:=$ARCHI_REPORT_PATH}/$_project.archimate"
     )
 
+  [ "${ARCHI_SAVE_REPO_MODEL_ENABLED,,}" == true ] &&
+    _args+=(
+      --modelrepository.saveModel
+      "$ARCHI_PROJECT_PATH"
+    )
+
   # Jasper report
   [ "${ARCHI_JASPER_REPORT_ENABLED,,}" == true ] &&
     _args+=(
@@ -181,6 +187,29 @@ update_html() {
 # Git clone wrap
 git_clone() { git clone "${1:?Repo url not set}" "$ARCHI_PROJECT_PATH"; }
 
+git_stats() {
+  # Count untracked files
+  untracked=$(git ls-files --others --exclude-standard | wc -l)
+
+  # Count added files
+  added=$(git diff --name-only --diff-filter=A | wc -l)
+
+  # Count changed files
+  changed=$(git diff --name-only --diff-filter=M | wc -l)
+
+  # Count moved files
+  moved=$(git diff --name-only --diff-filter=R | wc -l)
+
+  # Count deleted files
+  deleted=$(git diff --name-only --diff-filter=D | wc -l)
+
+  echo "Untracked files: $untracked"
+  echo "Added files: $added"
+  echo "Changed files: $changed"
+  echo "Moved files: $moved"
+  echo "Deleted files: $deleted"
+}
+
 # GitLab log separator
 section_start () {
   printf '\e[0Ksection_start:%s:%s[collapsed=true]\r\e[0K\e[1;36m%s\e[0m\n' \
@@ -224,11 +253,54 @@ if [ "${DOWNLOAD_CUSTOM_PLUGINS_GCP,,}" == "true" ]; then
   gsutil cp -r "$GOOGLE_CLOUD_STORAGE_SOURCE" /root/.archi/dropins/
 fi
 
+# Authenticate with Google Cloud and download custom plugins if required
+if [ "${DOWNLOAD_CUSTOM_PLUGINS_GCP,,}" == "true" ]; then
+  if [ -z "${GOOGLE_APPLICATION_CREDENTIALS_JSON:-}" ]; then
+    echo "Error: GOOGLE_APPLICATION_CREDENTIALS is not set."
+    exit 1
+  fi
+
+  if [ -z "${GOOGLE_CLOUD_PROJECT:-}" ]; then
+    echo "Error: GOOGLE_CLOUD_PROJECT is not set."
+    exit 1
+  fi
+
+  if [ -z "${GOOGLE_CLOUD_STORAGE_SOURCE:-}" ]; then
+    echo "Error: GOOGLE_CLOUD_STORAGE_SOURCE is not set."
+    exit 1
+  fi
+
+  echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /root/service-account-key.json
+
+  gcloud auth activate-service-account --key-file=/root/service-account-key.json
+
+  gcloud config set project "$GOOGLE_CLOUD_PROJECT"
+
+  # Download a file from the GCS bucket
+  gsutil cp -r "$GOOGLE_CLOUD_STORAGE_SOURCE" /root/.archi/dropins/
+fi
+
+# Remove default plugins if required
+if [ "${REMOVE_DEFAULT_PLUGINS,,}" == "true" ]; then
+  echo "Removing default plugins from /root/.archi/dropins"
+  rm -rf /root/.archi/dropins/*
+fi
+
+# Copy local plugins if required
+if [ "${COPY_LOCAL_PLUGINS,,}" == "true" ]; then
+  if [ -z "${ARCHI_PLUGINS_SOURCE_PATH:-}" ]; then
+    echo "Error: ARCHI_PLUGINS_SOURCE_PATH is not set."
+    exit 1
+  fi
+
+  cp -r "$ARCHI_PLUGINS_SOURCE_PATH"/* /root/.archi/dropins/
+fi
+
 # Run custom archi command
 if [ "$#" -ge 1 ]; then
   echo "Execute Archi with _args: $*"
   xvfb-run \
-    /opt/Archi/Archi -application "$ARCHI_APP" -consoleLog -nosplash "$@" 
+    /opt/Archi/Archi -application "$ARCHI_APP" -consoleLog -nosplash "$@"
   exit;
 fi
 
@@ -394,5 +466,22 @@ fi
 
 # Make report
 archi_run
+
+if [ "${DEBUG:-false}" = true ]; then
+  echo "Debug mode is enabled"
+  echo "Current directory: $(pwd)"
+  echo "Project path: $ARCHI_PROJECT_PATH"
+  echo "Report path: $ARCHI_REPORT_PATH"
+  echo "Git repository: ${GIT_REPOSITORY:-not set}"
+  
+fi
+
+if [ "${SHOW_GIT_STATS,,}" == true ]; then
+  echo "Check git status on updated files"
+  cd "$ARCHI_PROJECT_PATH"
+  
+  git_stats
+fi
+
 
 exit 0
